@@ -261,7 +261,7 @@
                 <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
                     <div class="flex items-start justify-between">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Môn Điểm Thấp (D, D+, F)</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Môn Điểm Thấp (C, D+, D, F)</p>
                             <div class="flex items-baseline gap-2 mt-2">
                                 <span id="kpi-low-courses" class="text-3xl font-extrabold text-amber-600">0</span>
                                 <span class="text-xs font-medium text-slate-500">môn (<span id="kpi-low-credits">0</span> TC)</span>
@@ -318,7 +318,7 @@
                             <!-- Grade Filter -->
                             <select id="filter-grade" onchange="renderTable()" class="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-humg-500 outline-none">
                                 <option value="ALL">Tất cả điểm chữ</option>
-                                <option value="IMPROVE">Môn nên cải thiện (D, D+, F)</option>
+                                <option value="IMPROVE">Môn nên cải thiện (C, D+, D, F)</option>
                                 <option value="EXCLUDED">Đã bỏ tính / Đã xóa</option>
                                 <option value="A+">Điểm A+ (4.0)</option>
                                 <option value="A">Điểm A (3.7)</option>
@@ -809,7 +809,7 @@
         // =========================================================================
         function computeTranscriptAnalytics() {
             const includeExcluded = document.getElementById('toggle-excluded').checked;
-            const allItems = [...rawCourses, ...hypotheticalCourses];
+            const allItems = [...hypotheticalCourses, ...rawCourses];
 
             // Effective scores per row
             const enriched = allItems.map(item => {
@@ -895,7 +895,7 @@
                 if (item.effScore4 > 0) {
                     passedCredits += item.credits;
                 }
-                if (['D', 'D+', 'F'].includes(item.effLetter)) {
+                if (['C', 'D', 'D+', 'F'].includes(item.effLetter)) {
                     lowCoursesCount++;
                     lowCoursesCredits += item.credits;
                 }
@@ -944,7 +944,7 @@
 
         function populateSemesterDropdown() {
             const select = document.getElementById('filter-semester');
-            const semesters = [...new Set([...rawCourses, ...hypotheticalCourses].map(c => c.semester))];
+            const semesters = [...new Set([...hypotheticalCourses, ...rawCourses].map(c => c.semester))];
             select.innerHTML = `<option value="ALL">Tất cả học kỳ (${semesters.length})</option>`;
             semesters.forEach(sem => {
                 const opt = document.createElement('option');
@@ -1042,7 +1042,7 @@
             const filtered = enriched.filter(item => {
                 if (semFilter !== 'ALL' && item.semester !== semFilter) return false;
                 if (gradeFilter === 'IMPROVE') {
-                    if (!['D', 'D+', 'F'].includes(item.effLetter) || item.excludedByRule || item.isSuperseded || item.isUserExcluded) return false;
+                    if (!['C', 'D', 'D+', 'F'].includes(item.effLetter) || item.excludedByRule || item.isSuperseded || item.isUserExcluded) return false;
                 } else if (gradeFilter === 'EXCLUDED') {
                     if (!item.isUserExcluded) return false;
                 } else if (gradeFilter !== 'ALL' && item.effLetter !== gradeFilter) {
@@ -1089,7 +1089,7 @@
                     statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-100 text-amber-800">Đang giả lập</span>`;
                 } else if (item.effScore4 === 0) {
                     statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-100 text-rose-700">Chưa đạt</span>`;
-                } else if (['D', 'D+'].includes(item.effLetter)) {
+                } else if (['C', 'D', 'D+'].includes(item.effLetter)) {
                     statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">Nên cải thiện</span>`;
                 } else {
                     statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700">Tích lũy</span>`;
@@ -1261,7 +1261,7 @@
             const credits = parseFloat(document.getElementById('new-course-credits').value) || 3;
             const letter = document.getElementById('new-course-grade').value;
 
-            hypotheticalCourses.push({
+            hypotheticalCourses.unshift({
                 id: 'hypo_' + Date.now(),
                 semester: 'Học kỳ dự kiến (Giả lập)',
                 code: 'DUKIEN',
@@ -1278,7 +1278,7 @@
             saveToLocalStorage();
             populateSemesterDropdown();
             recalculateAll();
-            showToast(`Đã thêm "${name}" (${credits} TC - điểm ${letter}) vào bảng điểm!`);
+            showToast(`Đã thêm "${name}" (${credits} TC - điểm ${letter}) lên đầu bảng điểm!`);
         }
 
         function removeHypotheticalCourse(id) {
