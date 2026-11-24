@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HUMG Score - Tính & Dự Đoán Điểm Tích Lũy Đại Học Mỏ - Địa Chất</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for Excel Parsing & Exporting -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        humg: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            500: '#2563eb',
+                            600: '#1e56a0',
+                            700: '#163f78',
+                            800: '#0f3460',
+                            900: '#091f3a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .drag-active {
+            border-color: #2563eb !important;
+            background-color: #eff6ff !important;
+            transform: scale(1.01);
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Toast Notification Banner -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300 translate-y-2 opacity-0">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 max-w-sm border border-slate-700">
+            <span id="toast-icon" class="text-emerald-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </span>
+            <p id="toast-message" class="text-sm font-medium"></p>
+        </div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-gradient-to-r from-humg-900 via-humg-800 to-humg-600 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-inner">
+                    <svg class="w-6 h-6 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-lg sm:text-xl tracking-tight">HUMG Score</h1>
+                        <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-400/20 text-sky-200 border border-sky-300/30">Mỏ - Địa Chất</span>
+                    </div>
+                    <p class="text-xs text-blue-200 hidden sm:block">Phân tích bảng điểm Excel & Giả lập GPA tích lũy</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button onclick="loadDemoData()" class="text-xs sm:text-sm font-medium bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl border border-white/15 transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    <span>Dữ liệu mẫu</span>
+                </button>
+                <button id="btn-export" onclick="exportExcel()" class="hidden text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white px-3.5 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span class="hidden sm:inline">Xuất Excel</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Upload Section -->
+        <section id="upload-section" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6 transition-all">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div class="space-y-1.5 max-w-xl">
+                    <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-humg-600 bg-humg-50 px-2.5 py-1 rounded-lg">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Hỗ trợ trực tiếp file Excel cổng Đào tạo HUMG
+                    </div>
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900">Tải lên bảng điểm cá nhân (.xlsx, .xls, .csv)</h2>
+                    <p class="text-sm text-slate-500 leading-relaxed">
+                        Hệ thống tự động nhận diện cấu trúc file xuất từ <span class="font-medium text-slate-700">daotaodaihoc.humg.edu.vn</span>, tự động lọc học phần Thể chất (<code class="text-xs bg-slate-100 px-1 py-0.5 rounded">70107xx</code>), Quốc phòng (<code class="text-xs bg-slate-100 px-1 py-0.5 rounded">730xxxx</code>) và tự động lấy điểm cao nhất cho các môn học cải thiện.
+                    </p>
+                </div>
+
+                <!-- Dropzone -->
+                <div id="drop-zone" class="flex-1 max-w-xl border-2 border-dashed border-slate-300 hover:border-humg-500 rounded-2xl p-5 text-center cursor-pointer transition-all bg-slate-50/70 hover:bg-humg-50/40 group relative">
+                    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" class="hidden" />
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-humg-100 text-humg-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                        </div>
+                        <div class="text-center sm:text-left">
+                            <p class="text-sm font-semibold text-slate-800">
+                                Kéo thả file bảng điểm vào đây hoặc <span class="text-humg-600 underline">chọn từ máy</span>
+                            </p>
+                            <p id="file-status-text" class="text-xs text-slate-500 mt-1">
+                                Dữ liệu được xử lý 100% trên trình duyệt, không gửi lên máy chủ.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Empty State Guide (Shown when no data is loaded yet) -->
+        <section id="empty-state" class="bg-white rounded-2xl border border-slate-200/80 p-8 sm:p-12 text-center space-y-5">
+            <div class="w-16 h-16 bg-humg-50 text-humg-600 rounded-2xl flex items-center justify-center mx-auto">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <div class="max-w-lg mx-auto space-y-2">
+                <h3 class="text-lg font-bold text-slate-900">Chưa có dữ liệu bảng điểm</h3>
+                <p class="text-sm text-slate-500">
+                    Vào trang <strong>Cổng thông tin đào tạo HUMG &rarr; Xem điểm &rarr; Xuất file Excel</strong> rồi tải lên phía trên, hoặc nhấn nút bên dưới để trải nghiệm thử ngay với dữ liệu mẫu.
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button onclick="document.getElementById('file-input').click()" class="px-5 py-2.5 bg-humg-700 hover:bg-humg-800 text-white text-sm font-semibold rounded-xl shadow-sm transition">
+                    Chọn file Excel từ máy
+                </button>
+                <button onclick="loadDemoData()" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold rounded-xl transition">
+                    Xem thử dữ liệu mẫu HUMG
+                </button>
+            </div>
+        </section>
+
+        <!-- Main Dashboard Content (Hidden until data loaded) -->
+        <div id="dashboard-content" class="hidden space-y-6">
+
+            <!-- Simulation Banner (Appears when user modifies grades or adds hypothetical courses) -->
+            <div id="simulation-banner" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </span>
+                    <div>
+                        <p class="text-sm font-bold text-amber-900">Đang bật chế độ Giả lập / Dự đoán điểm</p>
+                        <p id="simulation-diff-text" class="text-xs text-amber-700">Bạn đã thay đổi điểm một số học phần để xem trước kết quả GPA.</p>
+                    </div>
+                </div>
+                <button onclick="resetSimulations()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition shrink-0">
+                    Đặt lại điểm gốc
+                </button>
+            </div>
+
+            <!-- 4 KPI Overview Cards -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Card 1: GPA Hệ 4 -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm relative overflow-hidden">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">GPA Tích Lũy (Hệ 4)</p>
+                            <div class="flex items-baseline gap-2 mt-2">
+                                <span id="kpi-gpa4" class="text-3xl font-extrabold text-humg-800">0.00</span>
+                                <span id="kpi-gpa4-delta" class="text-xs font-bold hidden"></span>
+                            </div>
+                        </div>
+                        <span id="kpi-rank-badge" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-800">
+                            Khá
+                        </span>
+                    </div>
+                    <div class="mt-4 space-y-1.5">
+                        <div class="flex justify-between text-xs text-slate-500">
+                            <span id="kpi-next-rank-label">Mục tiêu Giỏi (3.20)</span>
+                            <span id="kpi-next-rank-percent" class="font-semibold text-slate-700">0%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="kpi-rank-bar" class="h-full bg-gradient-to-r from-humg-600 to-sky-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: GPA Hệ 10 -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">GPA Tích Lũy (Hệ 10)</p>
+                            <div class="flex items-baseline gap-2 mt-2">
+                                <span id="kpi-gpa10" class="text-3xl font-extrabold text-slate-900">0.00</span>
+                                <span id="kpi-gpa10-delta" class="text-xs font-bold hidden"></span>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        </div>
+                    </div>
+                    <p id="kpi-gpa-credits-note" class="text-xs text-slate-500 mt-4">
+                        Tính trên <strong class="text-slate-700">0</strong> tín chỉ học phần tính điểm
+                    </p>
+                </div>
+
+                <!-- Card 3: Tín chỉ tích lũy -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tín Chỉ Tích Lũy</p>
+                            <div class="flex items-baseline gap-1.5 mt-2">
+                                <span id="kpi-credits-passed" class="text-3xl font-extrabold text-emerald-600">0</span>
+                                <span class="text-sm font-medium text-slate-400">/</span>
+                                <input id="total-program-credits" type="number" value="150" min="100" max="250" onchange="recalculateAll()" title="Tổng số tín chỉ toàn khóa" class="w-14 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-humg-500 rounded-lg px-1.5 py-0.5 text-center outline-none transition" />
+                                <span class="text-xs text-slate-400">TC</span>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+                    <p id="kpi-credits-remaining" class="text-xs text-slate-500 mt-4">
+                        Còn thiếu <strong class="text-slate-700">0</strong> tín chỉ để hoàn thành chương trình
+                    </p>
+                </div>
+
+                <!-- Card 4: Môn nên cải thiện -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Môn Điểm Thấp (D, D+, F)</p>
+                            <div class="flex items-baseline gap-2 mt-2">
+                                <span id="kpi-low-courses" class="text-3xl font-extrabold text-amber-600">0</span>
+                                <span class="text-xs font-medium text-slate-500">môn (<span id="kpi-low-credits">0</span> TC)</span>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        </div>
+                    </div>
+                    <button onclick="filterImproveCandidates()" class="mt-3.5 text-xs font-semibold text-humg-600 hover:text-humg-800 flex items-center gap-1 transition">
+                        <span>Lọc ngay các môn nên học cải thiện</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Navigation Tabs -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="border-b border-slate-200 px-2 sm:px-4 flex overflow-x-auto no-scrollbar">
+                    <button onclick="switchTab('grades')" id="tab-btn-grades" class="tab-btn px-4 py-3.5 text-sm font-semibold border-b-2 border-humg-600 text-humg-700 whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        <span>Bảng điểm & Giả lập cải thiện</span>
+                    </button>
+                    <button onclick="switchTab('target')" id="tab-btn-target" class="tab-btn px-4 py-3.5 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <span>Tính mục tiêu ra trường</span>
+                    </button>
+                    <button onclick="switchTab('charts')" id="tab-btn-charts" class="tab-btn px-4 py-3.5 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                        <span>Biểu đồ phân tích</span>
+                    </button>
+                    <button onclick="switchTab('scale')" id="tab-btn-scale" class="tab-btn px-4 py-3.5 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>Quy chế điểm HUMG</span>
+                    </button>
+                </div>
+
+                <!-- TAB 1: Grade Table & What-If Simulator -->
+                <div id="tab-grades" class="tab-panel p-4 sm:p-6 space-y-5">
+                    <!-- Filter & Action Toolbar -->
+                    <div class="flex flex-col lg:flex-row gap-3 justify-between">
+                        <div class="flex flex-wrap items-center gap-2.5 flex-1">
+                            <!-- Search -->
+                            <div class="relative flex-1 min-w-[200px] max-w-xs">
+                                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                <input id="search-input" type="text" oninput="renderTable()" placeholder="Tìm mã môn, tên môn..." class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-humg-500 focus:border-humg-500 outline-none transition" />
+                            </div>
+
+                            <!-- Semester Filter -->
+                            <select id="filter-semester" onchange="renderTable()" class="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-humg-500 outline-none">
+                                <option value="ALL">Tất cả học kỳ</option>
+                            </select>
+
+                            <!-- Grade Filter -->
+                            <select id="filter-grade" onchange="renderTable()" class="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-humg-500 outline-none">
+                                <option value="ALL">Tất cả điểm chữ</option>
+                                <option value="IMPROVE">Môn nên cải thiện (D, D+, F)</option>
+                                <option value="EXCLUDED">Đã bỏ tính / Đã xóa</option>
+                                <option value="A+">Điểm A+ (4.0)</option>
+                                <option value="A">Điểm A (3.7)</option>
+                                <option value="B+">Điểm B+ (3.5)</option>
+                                <option value="B">Điểm B (3.0)</option>
+                                <option value="C+">Điểm C+ (2.5)</option>
+                                <option value="C">Điểm C (2.0)</option>
+                                <option value="D+">Điểm D+ (1.5)</option>
+                                <option value="D">Điểm D (1.0)</option>
+                                <option value="F">Điểm F (0.0)</option>
+                            </select>
+                        </div>
+
+                        <!-- Add Hypothetical Course & Restore Excluded Buttons -->
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button id="btn-restore-excluded" onclick="restoreAllExcludedCourses()" class="hidden px-3.5 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs sm:text-sm font-semibold rounded-xl border border-amber-300 transition flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                                <span>Khôi phục tất cả môn đã bỏ (<span id="excluded-count-label">0</span>)</span>
+                            </button>
+                            <button onclick="openAddCourseModal()" class="px-4 py-2 bg-humg-700 hover:bg-humg-800 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span>Thêm môn dự kiến</span>
+                            </button>
+                            <button onclick="clearStoredData()" title="Xóa toàn bộ bảng điểm" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Helper Tip -->
+                    <div class="bg-blue-50/70 border border-blue-100 rounded-xl px-4 py-2.5 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                        <span>💡 <strong>Mẹo giả lập:</strong> Chọn điểm mới ở cột <strong>"Giả lập điểm"</strong> hoặc bấm nút <strong>Thùng rác</strong> cuối dòng để loại trừ tạm thời một môn khỏi tính toán GPA.</span>
+                        <label class="inline-flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+                            <input id="toggle-excluded" type="checkbox" onchange="recalculateAll()" class="rounded text-humg-600 focus:ring-humg-500">
+                            <span>Tính cả GDTC & GDQP vào GPA</span>
+                        </label>
+                    </div>
+
+                    <!-- Semester-Specific GPA Summary Banner (Shown when filtering by a single semester) -->
+                    <div id="semester-summary-banner" class="hidden bg-gradient-to-r from-humg-50 via-sky-50 to-indigo-50 border border-humg-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <div class="space-y-1">
+                                <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-humg-600">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    <span>Kết quả học tập riêng học kỳ</span>
+                                </div>
+                                <h3 id="sem-summary-title" class="text-base sm:text-lg font-extrabold text-humg-900">Học kỳ</h3>
+                                <p id="sem-summary-note" class="text-xs text-slate-600">Tính trên tất cả môn học trong học kỳ này (bao gồm cả môn học lại/cải thiện).</p>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+                                <div class="bg-white/90 rounded-xl px-3.5 py-2.5 border border-humg-100 text-center">
+                                    <p class="text-[11px] font-semibold text-slate-400 uppercase">ĐTB Học kỳ (Hệ 4)</p>
+                                    <p id="sem-summary-gpa4" class="text-xl font-extrabold text-humg-700 mt-0.5">0.00</p>
+                                </div>
+                                <div class="bg-white/90 rounded-xl px-3.5 py-2.5 border border-humg-100 text-center">
+                                    <p class="text-[11px] font-semibold text-slate-400 uppercase">ĐTB Học kỳ (Hệ 10)</p>
+                                    <p id="sem-summary-gpa10" class="text-xl font-extrabold text-slate-800 mt-0.5">0.00</p>
+                                </div>
+                                <div class="bg-white/90 rounded-xl px-3.5 py-2.5 border border-humg-100 text-center">
+                                    <p class="text-[11px] font-semibold text-slate-400 uppercase">Tín chỉ đạt HK</p>
+                                    <p id="sem-summary-credits" class="text-xl font-extrabold text-emerald-600 mt-0.5">0 <span class="text-xs font-medium text-slate-400">/ 0</span></p>
+                                </div>
+                                <div class="bg-white/90 rounded-xl px-3.5 py-2.5 border border-humg-100 text-center flex flex-col justify-center items-center">
+                                    <p class="text-[11px] font-semibold text-slate-400 uppercase mb-1">Xếp loại HK</p>
+                                    <span id="sem-summary-rank" class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-blue-100 text-blue-800">Khá</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Responsive Table -->
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    <th class="py-3 px-3.5">Mã MH</th>
+                                    <th class="py-3 px-3.5">Tên học phần</th>
+                                    <th class="py-3 px-2.5 text-center">TC</th>
+                                    <th class="py-3 px-2.5 text-center">Hệ 10</th>
+                                    <th class="py-3 px-2.5 text-center">Hệ 4</th>
+                                    <th class="py-3 px-2.5 text-center">Điểm chữ</th>
+                                    <th class="py-3 px-3.5">Trạng thái</th>
+                                    <th class="py-3 px-3.5 text-right">Giả lập điểm</th>
+                                    <th class="py-3 px-2.5 text-center">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="courses-tbody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Rows injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 2: Target GPA Calculator -->
+                <div id="tab-target" class="tab-panel hidden p-4 sm:p-6">
+                    <div class="max-w-3xl mx-auto space-y-6">
+                        <div class="text-center space-y-1">
+                            <h3 class="text-lg font-bold text-slate-900">Dự đoán điểm cần đạt để đạt bằng Khá / Giỏi / Xuất sắc</h3>
+                            <p class="text-sm text-slate-500">Tính toán điểm trung bình tối thiểu bạn cần đạt ở các tín chỉ còn lại trước khi tốt nghiệp.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">GPA Mục tiêu (Hệ 4)</label>
+                                <select id="target-gpa-select" onchange="calculateTargetGPA()" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-humg-800 focus:ring-2 focus:ring-humg-500 outline-none">
+                                    <option value="2.00">2.00 - Bằng Trung bình</option>
+                                    <option value="2.50">2.50 - Bằng Khá</option>
+                                    <option value="3.20" selected>3.20 - Bằng Giỏi</option>
+                                    <option value="3.60">3.60 - Bằng Xuất sắc</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">Tổng tín chỉ toàn khóa</label>
+                                <input id="target-total-credits" type="number" value="150" min="100" max="250" oninput="calculateTargetGPA()" class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-humg-500 outline-none" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1.5">Tín chỉ đã tích lũy</label>
+                                <input id="target-current-credits" type="text" readonly class="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 cursor-not-allowed" />
+                            </div>
+                        </div>
+
+                        <!-- Target Result Card -->
+                        <div id="target-result-box" class="rounded-2xl p-6 border transition-all">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: Analytics Charts -->
+                <div id="tab-charts" class="tab-panel hidden p-4 sm:p-6 space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80">
+                            <h4 class="text-sm font-bold text-slate-800 mb-4">Biến động GPA từng học kỳ & GPA tích lũy (Hệ 4)</h4>
+                            <div class="relative h-72 w-full">
+                                <canvas id="semesterChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80">
+                            <h4 class="text-sm font-bold text-slate-800 mb-4">Phân bố tín chỉ theo điểm chữ</h4>
+                            <div class="relative h-72 w-full">
+                                <canvas id="gradeDistChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: HUMG Grading Scale Reference -->
+                <div id="tab-scale" class="tab-panel hidden p-4 sm:p-6">
+                    <div class="max-w-3xl mx-auto space-y-4">
+                        <div class="space-y-1">
+                            <h3 class="text-base font-bold text-slate-900">Bảng quy đổi điểm học phần Đại học Mỏ - Địa chất (HUMG)</h3>
+                            <p class="text-xs text-slate-500">Áp dụng theo quy chế đào tạo tín chỉ hiện hành được trích xuất trực tiếp từ bảng điểm cổng đào tạo HUMG.</p>
+                        </div>
+                        <div class="overflow-hidden border border-slate-200 rounded-xl">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                                    <tr>
+                                        <th class="py-3 px-4">Thang điểm 10</th>
+                                        <th class="py-3 px-4 text-center">Điểm chữ</th>
+                                        <th class="py-3 px-4 text-center">Thang điểm 4</th>
+                                        <th class="py-3 px-4">Đánh giá</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr><td class="py-2.5 px-4 font-medium">9.0 – 10.0</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800">A+</span></td><td class="py-2.5 px-4 text-center font-bold">4.0</td><td class="py-2.5 px-4 text-slate-600">Đạt (Xuất sắc)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">8.5 – 8.9</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700">A</span></td><td class="py-2.5 px-4 text-center font-bold">3.7</td><td class="py-2.5 px-4 text-slate-600">Đạt (Giỏi)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">8.0 – 8.4</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-blue-100 text-blue-800">B+</span></td><td class="py-2.5 px-4 text-center font-bold">3.5</td><td class="py-2.5 px-4 text-slate-600">Đạt (Khá giỏi)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">7.0 – 7.9</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-blue-100 text-blue-700">B</span></td><td class="py-2.5 px-4 text-center font-bold">3.0</td><td class="py-2.5 px-4 text-slate-600">Đạt (Khá)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">6.5 – 6.9</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-sky-100 text-sky-800">C+</span></td><td class="py-2.5 px-4 text-center font-bold">2.5</td><td class="py-2.5 px-4 text-slate-600">Đạt (Trung bình khá)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">5.5 – 6.4</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-sky-100 text-sky-700">C</span></td><td class="py-2.5 px-4 text-center font-bold">2.0</td><td class="py-2.5 px-4 text-slate-600">Đạt (Trung bình)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">5.0 – 5.4</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-amber-100 text-amber-800">D+</span></td><td class="py-2.5 px-4 text-center font-bold">1.5</td><td class="py-2.5 px-4 text-slate-600">Đạt (Trung bình yếu - Nên cải thiện)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">4.0 – 4.9</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-amber-100 text-amber-700">D</span></td><td class="py-2.5 px-4 text-center font-bold">1.0</td><td class="py-2.5 px-4 text-slate-600">Đạt (Yếu - Nên cải thiện)</td></tr>
+                                    <tr><td class="py-2.5 px-4 font-medium">&lt; 4.0</td><td class="py-2.5 px-4 text-center"><span class="px-2.5 py-0.5 rounded-md font-bold bg-rose-100 text-rose-700">F</span></td><td class="py-2.5 px-4 text-center font-bold">0.0</td><td class="py-2.5 px-4 text-rose-600 font-medium">Không đạt (Phải học lại)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Add Hypothetical Course -->
+    <div id="add-course-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-900">Thêm học phần dự kiến (Giả lập)</h3>
+                <button onclick="closeAddCourseModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tên học phần</label>
+                    <input id="new-course-name" type="text" placeholder="VD: Đồ án tốt nghiệp / Thực tập tốt nghiệp" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-humg-500 outline-none" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Số tín chỉ</label>
+                        <input id="new-course-credits" type="number" value="10" min="1" max="15" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-humg-500 outline-none" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Điểm dự kiến</label>
+                        <select id="new-course-grade" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-humg-500 outline-none font-semibold">
+                            <option value="A+">A+ (4.0 - 9.5đ)</option>
+                            <option value="A">A (3.7 - 8.7đ)</option>
+                            <option value="B+" selected>B+ (3.5 - 8.2đ)</option>
+                            <option value="B">B (3.0 - 7.5đ)</option>
+                            <option value="C+">C+ (2.5 - 6.7đ)</option>
+                            <option value="C">C (2.0 - 6.0đ)</option>
+                            <option value="D+">D+ (1.5 - 5.2đ)</option>
+                            <option value="D">D (1.0 - 4.5đ)</option>
+                            <option value="F">F (0.0 - 2.0đ)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeAddCourseModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Hủy</button>
+                <button onclick="confirmAddCourse()" class="px-4 py-2 text-sm font-semibold bg-humg-700 hover:bg-humg-800 text-white rounded-xl shadow-sm">Thêm vào bảng điểm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-5 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+            <p><strong>HUMG Score</strong> — Công cụ hỗ trợ sinh viên Đại học Mỏ - Địa chất tính GPA & lập kế hoạch cải thiện điểm.</p>
+            <p>Hỗ trợ định dạng Excel chuẩn từ cổng đào tạo HUMG.</p>
+        </div>
+    </footer>
+
+    <script>
+        // =========================================================================
+        // 1. STATE & CONSTANTS (HUMG Grading Scale & Rules)
+        // =========================================================================
+        const STORAGE_KEY = 'humg_score_transcript_v1';
+
+        // Exact HUMG grade scale mapping observed in thang.xlsx
+        const GRADE_MAP = {
+            'A+': { score4: 4.0, default10: 9.5, badge: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+            'A':  { score4: 3.7, default10: 8.7, badge: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+            'B+': { score4: 3.5, default10: 8.2, badge: 'bg-blue-100 text-blue-800 border-blue-200' },
+            'B':  { score4: 3.0, default10: 7.5, badge: 'bg-blue-100 text-blue-700 border-blue-200' },
+            'C+': { score4: 2.5, default10: 6.7, badge: 'bg-sky-100 text-sky-800 border-sky-200' },
+            'C':  { score4: 2.0, default10: 6.0, badge: 'bg-sky-100 text-sky-700 border-sky-200' },
+            'D+': { score4: 1.5, default10: 5.2, badge: 'bg-amber-100 text-amber-800 border-amber-200' },
+            'D':  { score4: 1.0, default10: 4.5, badge: 'bg-amber-100 text-amber-700 border-amber-200' },
+            'F':  { score4: 0.0, default10: 2.0, badge: 'bg-rose-100 text-rose-700 border-rose-200' }
+        };
+
+        let rawCourses = [];         // Parsed original rows from Excel or Demo
+        let hypotheticalCourses = []; // User-added future courses
+        let semesterChartInstance = null;
+        let gradeDistChartInstance = null;
+
+        // =========================================================================
+        // 2. INITIALIZATION & LOCAL STORAGE
+        // =========================================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            setupDropzone();
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed.rawCourses) && parsed.rawCourses.length > 0) {
+                        rawCourses = parsed.rawCourses;
+                        hypotheticalCourses = parsed.hypotheticalCourses || [];
+                        document.getElementById('file-status-text').innerHTML = `<span class="text-emerald-600 font-semibold">Đã khôi phục bảng điểm đã lưu (${rawCourses.length} lượt học phần).</span>`;
+                        activateDashboard();
+                    }
+                } catch (e) {
+                    console.error('Failed to restore saved data', e);
+                }
+            }
+        });
+
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    rawCourses,
+                    hypotheticalCourses
+                }));
+            } catch (e) {
+                console.warn('Storage full or disabled');
+            }
+        }
+
+        function clearStoredData() {
+            localStorage.removeItem(STORAGE_KEY);
+            rawCourses = [];
+            hypotheticalCourses = [];
+            document.getElementById('dashboard-content').classList.add('hidden');
+            document.getElementById('btn-export').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('hidden');
+            document.getElementById('file-status-text').textContent = 'Dữ liệu được xử lý 100% trên trình duyệt, không gửi lên máy chủ.';
+            showToast('Đã xóa dữ liệu bảng điểm khỏi trình duyệt.');
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+            msgEl.textContent = msg;
+            iconEl.className = isError ? 'text-rose-400' : 'text-emerald-400';
+            toast.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3200);
+        }
+
+        // =========================================================================
+        // 3. EXCEL FILE UPLOAD & HUMG PARSER (Matches thang.xlsx structure)
+        // =========================================================================
+        function setupDropzone() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-active');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-active');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-active');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    processExcelFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    processExcelFile(e.target.files[0]);
+                    e.target.value = ''; // allow re-uploading same file
+                }
+            });
+        }
+
+        function processExcelFile(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    // Read as 2D array to handle blank top rows dynamically
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+                    const parsed = parseHUMGTranscriptRows(rows);
+                    if (parsed.length === 0) {
+                        showToast('Không tìm thấy dữ liệu môn học hợp lệ trong file Excel!', true);
+                        return;
+                    }
+
+                    rawCourses = parsed;
+                    hypotheticalCourses = [];
+                    saveToLocalStorage();
+                    document.getElementById('file-status-text').innerHTML = `<span class="text-emerald-600 font-semibold">Đã tải: ${file.name} (${rawCourses.length} học phần)</span>`;
+                    activateDashboard();
+                    showToast(`Đọc thành công ${rawCourses.length} học phần từ file ${file.name}!`);
+                } catch (err) {
+                    console.error(err);
+                    showToast('Lỗi khi đọc file Excel. Vui lòng kiểm tra định dạng file.', true);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        /**
+         * Parses 2D array from HUMG portal Excel export.
+         * Columns in HUMG export:
+         * [0] Stt | [1] Mã MH | [2] Nhóm/tổ môn học | [3] Tên môn học | [4] Số tín chỉ | [5] Điểm thi | [6] Điểm TK (10) | [7] Điểm TK (4) | [8] Điểm TK (C)
+         */
+        function parseHUMGTranscriptRows(rows) {
+            let headerIdx = -1;
+            let colMap = { stt: 0, code: 1, group: 2, name: 3, credits: 4, exam: 5, score10: 6, score4: 7, letter: 8 };
+
+            // 1. Dynamically find header row containing "Mã MH" and "Tên môn học"
+            for (let i = 0; i < Math.min(rows.length, 30); i++) {
+                const rowStr = rows[i].map(cell => String(cell).trim());
+                if (rowStr.includes('Mã MH') && rowStr.includes('Tên môn học')) {
+                    headerIdx = i;
+                    rowStr.forEach((colName, idx) => {
+                        if (colName === 'Stt') colMap.stt = idx;
+                        else if (colName === 'Mã MH') colMap.code = idx;
+                        else if (colName.includes('Tên môn')) colMap.name = idx;
+                        else if (colName.includes('tín chỉ')) colMap.credits = idx;
+                        else if (colName.includes('Điểm thi')) colMap.exam = idx;
+                        else if (colName.includes('TK (10)')) colMap.score10 = idx;
+                        else if (colName.includes('TK (4)')) colMap.score4 = idx;
+                        else if (colName.includes('TK (C)')) colMap.letter = idx;
+                    });
+                    break;
+                }
+            }
+
+            if (headerIdx === -1) return [];
+
+            const courses = [];
+            let currentSemester = 'Học kỳ chưa xác định';
+            let uidCounter = 1;
+
+            // 2. Scan rows below header
+            for (let i = headerIdx + 1; i < rows.length; i++) {
+                const row = rows[i];
+                const sttCell = String(row[colMap.stt] ?? '').trim();
+                const codeCell = String(row[colMap.code] ?? '').trim();
+                const nameCell = String(row[colMap.name] ?? '').trim();
+
+                // Detect Semester header row (e.g., "Học kỳ 1 - Năm học 2023 - 2024")
+                if (sttCell.toLowerCase().startsWith('học kỳ')) {
+                    currentSemester = sttCell;
+                    continue;
+                }
+
+                // Ignore semester summary rows (start with "- ") or blank rows
+                if (sttCell.startsWith('-') || !codeCell || !nameCell) {
+                    continue;
+                }
+
+                const credits = parseFloat(row[colMap.credits]) || 0;
+                const rawScore10 = row[colMap.score10];
+                const rawScore4 = row[colMap.score4];
+                const rawLetter = String(row[colMap.letter] ?? '').trim().toUpperCase();
+
+                // Skip rows without valid numeric score yet (e.g. currently studying courses with blank grade)
+                if (rawScore10 === '' || rawScore10 === null || rawScore10 === undefined || isNaN(parseFloat(rawScore10))) {
+                    continue;
+                }
+
+                const score10 = parseFloat(rawScore10);
+                const letter = GRADE_MAP[rawLetter] ? rawLetter : score10ToLetter(score10);
+                const score4 = (!isNaN(parseFloat(rawScore4)) && rawScore4 !== '')
+                    ? parseFloat(rawScore4)
+                    : GRADE_MAP[letter].score4;
+
+                courses.push({
+                    id: 'course_' + (uidCounter++),
+                    semester: currentSemester,
+                    code: codeCell,
+                    name: nameCell,
+                    credits: credits,
+                    score10: score10,
+                    score4: score4,
+                    letter: letter,
+                    simLetter: null, // null means using original score
+                    userExcluded: false, // true when manually removed/excluded by user
+                    isHypothetical: false
+                });
+            }
+
+            return courses;
+        }
+
+        // Helper: Convert numeric 10-scale score to HUMG letter grade
+        function score10ToLetter(s) {
+            if (s >= 9.0) return 'A+';
+            if (s >= 8.5) return 'A';
+            if (s >= 8.0) return 'B+';
+            if (s >= 7.0) return 'B';
+            if (s >= 6.5) return 'C+';
+            if (s >= 5.5) return 'C';
+            if (s >= 5.0) return 'D+';
+            if (s >= 4.0) return 'D';
+            return 'F';
+        }
+
+        // Helper: Exclude Physical Education (70107xx) & National Defense (730xxxx) from GPA by default
+        function isNonGPACourse(code) {
+            const c = String(code || '').trim();
+            return c.startsWith('70107') || c.startsWith('730');
+        }
+
+        // =========================================================================
+        // 4. CORE GPA ENGINE (Handles Retakes, Exclusions & What-If Simulations)
+        // =========================================================================
+        function computeTranscriptAnalytics() {
+            const includeExcluded = document.getElementById('toggle-excluded').checked;
+            const allItems = [...rawCourses, ...hypotheticalCourses];
+
+            // Effective scores per row
+            const enriched = allItems.map(item => {
+                const isSimulated = item.simLetter !== null;
+                const isUserExcluded = Boolean(item.userExcluded);
+                const effLetter = isSimulated ? item.simLetter : item.letter;
+                const effScore4 = isSimulated ? GRADE_MAP[effLetter].score4 : item.score4;
+                const effScore10 = isSimulated ? GRADE_MAP[effLetter].default10 : item.score10;
+                const excludedByRule = !item.isHypothetical && isNonGPACourse(item.code) && !includeExcluded;
+
+                return {
+                    ...item,
+                    effLetter,
+                    effScore4,
+                    effScore10,
+                    isSimulated,
+                    isUserExcluded,
+                    excludedByRule,
+                    isSuperseded: false // Will mark true if there's a higher attempt of same course code
+                };
+            });
+
+            // Group by Course Code to resolve Retakes / Grade Improvements (Học lại / Học cải thiện)
+            // Ignore user-excluded attempts so active attempts are properly evaluated
+            const bestByCode = new Map();
+            enriched.forEach((item, index) => {
+                if (item.isHypothetical || item.isUserExcluded) return;
+                const key = item.code;
+                if (!bestByCode.has(key)) {
+                    bestByCode.set(key, index);
+                } else {
+                    const prevIdx = bestByCode.get(key);
+                    const prevItem = enriched[prevIdx];
+                    if (item.effScore10 >= prevItem.effScore10) {
+                        prevItem.isSuperseded = true;
+                        bestByCode.set(key, index);
+                    } else {
+                        item.isSuperseded = true;
+                    }
+                }
+            });
+
+            // Compute Cumulative Totals (Simulated/Effective vs Original Baseline)
+            let gpaCredits = 0;
+            let sumWeighted4 = 0;
+            let sumWeighted10 = 0;
+            let passedCredits = 0;
+            let lowCoursesCount = 0;
+            let lowCoursesCredits = 0;
+            let userExcludedCount = 0;
+
+            // Also compute original baseline (without simulations, exclusions, or hypotheticals)
+            let origGpaCredits = 0;
+            let origSum4 = 0;
+            let origSum10 = 0;
+
+            const origBestByCode = new Map();
+            rawCourses.forEach((c, idx) => {
+                if (!origBestByCode.has(c.code) || c.score10 >= rawCourses[origBestByCode.get(c.code)].score10) {
+                    origBestByCode.set(c.code, idx);
+                }
+            });
+            rawCourses.forEach((c, idx) => {
+                const excluded = isNonGPACourse(c.code) && !includeExcluded;
+                if (!excluded && origBestByCode.get(c.code) === idx) {
+                    origGpaCredits += c.credits;
+                    origSum4 += c.credits * c.score4;
+                    origSum10 += c.credits * c.score10;
+                }
+            });
+
+            enriched.forEach(item => {
+                if (item.isUserExcluded) {
+                    userExcludedCount++;
+                    return;
+                }
+                if (item.excludedByRule || item.isSuperseded) return;
+
+                gpaCredits += item.credits;
+                sumWeighted4 += item.credits * item.effScore4;
+                sumWeighted10 += item.credits * item.effScore10;
+
+                if (item.effScore4 > 0) {
+                    passedCredits += item.credits;
+                }
+                if (['D', 'D+', 'F'].includes(item.effLetter)) {
+                    lowCoursesCount++;
+                    lowCoursesCredits += item.credits;
+                }
+            });
+
+            const gpa4 = gpaCredits > 0 ? (sumWeighted4 / gpaCredits) : 0;
+            const gpa10 = gpaCredits > 0 ? (sumWeighted10 / gpaCredits) : 0;
+            const origGpa4 = origGpaCredits > 0 ? (origSum4 / origGpaCredits) : 0;
+            const origGpa10 = origGpaCredits > 0 ? (origSum10 / origGpaCredits) : 0;
+
+            const hasSimulations = enriched.some(i => i.isSimulated || i.isHypothetical || i.isUserExcluded);
+
+            return {
+                enriched,
+                gpa4,
+                gpa10,
+                origGpa4,
+                origGpa10,
+                gpaCredits,
+                passedCredits,
+                lowCoursesCount,
+                lowCoursesCredits,
+                userExcludedCount,
+                hasSimulations
+            };
+        }
+
+        function getRankInfo(gpa4) {
+            if (gpa4 >= 3.60) return { label: 'Xuất sắc', color: 'bg-emerald-100 text-emerald-800', nextLabel: 'Đã đạt mức tối đa (3.60+)', percent: 100 };
+            if (gpa4 >= 3.20) return { label: 'Giỏi', color: 'bg-blue-100 text-blue-800', nextLabel: 'Mục tiêu Xuất sắc (3.60)', percent: Math.min(100, Math.round((gpa4 / 3.60) * 100)) };
+            if (gpa4 >= 2.50) return { label: 'Khá', color: 'bg-sky-100 text-sky-800', nextLabel: 'Mục tiêu Giỏi (3.20)', percent: Math.min(100, Math.round((gpa4 / 3.20) * 100)) };
+            if (gpa4 >= 2.00) return { label: 'Trung bình', color: 'bg-amber-100 text-amber-800', nextLabel: 'Mục tiêu Khá (2.50)', percent: Math.min(100, Math.round((gpa4 / 2.50) * 100)) };
+            return { label: 'Yếu / Cảnh báo', color: 'bg-rose-100 text-rose-800', nextLabel: 'Mục tiêu Trung bình (2.00)', percent: Math.min(100, Math.round((gpa4 / 2.00) * 100)) };
+        }
+
+        // =========================================================================
+        // 5. UI RENDERING & UPDATES
+        // =========================================================================
+        function activateDashboard() {
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('hidden');
+            document.getElementById('btn-export').classList.remove('hidden');
+            populateSemesterDropdown();
+            recalculateAll();
+        }
+
+        function populateSemesterDropdown() {
+            const select = document.getElementById('filter-semester');
+            const semesters = [...new Set([...rawCourses, ...hypotheticalCourses].map(c => c.semester))];
+            select.innerHTML = `<option value="ALL">Tất cả học kỳ (${semesters.length})</option>`;
+            semesters.forEach(sem => {
+                const opt = document.createElement('option');
+                opt.value = sem;
+                opt.textContent = sem;
+                select.appendChild(opt);
+            });
+        }
+
+        function recalculateAll() {
+            const stats = computeTranscriptAnalytics();
+            const totalProgramCredits = parseInt(document.getElementById('total-program-credits').value) || 150;
+
+            // Update KPI 1: GPA 4
+            document.getElementById('kpi-gpa4').textContent = stats.gpa4.toFixed(2);
+            const delta4 = stats.gpa4 - stats.origGpa4;
+            const delta4El = document.getElementById('kpi-gpa4-delta');
+            if (stats.hasSimulations && Math.abs(delta4) >= 0.005) {
+                delta4El.classList.remove('hidden');
+                delta4El.textContent = (delta4 > 0 ? '+' : '') + delta4.toFixed(2);
+                delta4El.className = `text-xs font-bold px-1.5 py-0.5 rounded ${delta4 > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`;
+            } else {
+                delta4El.classList.add('hidden');
+            }
+
+            const rank = getRankInfo(stats.gpa4);
+            const rankBadge = document.getElementById('kpi-rank-badge');
+            rankBadge.textContent = rank.label;
+            rankBadge.className = `px-2.5 py-1 rounded-lg text-xs font-bold ${rank.color}`;
+            document.getElementById('kpi-next-rank-label').textContent = rank.nextLabel;
+            document.getElementById('kpi-next-rank-percent').textContent = rank.percent + '%';
+            document.getElementById('kpi-rank-bar').style.width = rank.percent + '%';
+
+            // Update KPI 2: GPA 10
+            document.getElementById('kpi-gpa10').textContent = stats.gpa10.toFixed(2);
+            const delta10 = stats.gpa10 - stats.origGpa10;
+            const delta10El = document.getElementById('kpi-gpa10-delta');
+            if (stats.hasSimulations && Math.abs(delta10) >= 0.005) {
+                delta10El.classList.remove('hidden');
+                delta10El.textContent = (delta10 > 0 ? '+' : '') + delta10.toFixed(2);
+                delta10El.className = `text-xs font-bold px-1.5 py-0.5 rounded ${delta10 > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`;
+            } else {
+                delta10El.classList.add('hidden');
+            }
+            document.getElementById('kpi-gpa-credits-note').innerHTML = `Tính trên <strong class="text-slate-700">${stats.gpaCredits}</strong> tín chỉ học phần tính điểm`;
+
+            // Update KPI 3: Passed Credits
+            document.getElementById('kpi-credits-passed').textContent = stats.passedCredits;
+            const remaining = Math.max(0, totalProgramCredits - stats.passedCredits);
+            document.getElementById('kpi-credits-remaining').innerHTML = remaining > 0
+                ? `Còn thiếu <strong class="text-slate-700">${remaining}</strong> tín chỉ để hoàn thành chương trình`
+                : `<span class="text-emerald-600 font-semibold">Đã tích lũy đủ số tín chỉ toàn khóa!</span>`;
+
+            // Update KPI 4: Low grade courses
+            document.getElementById('kpi-low-courses').textContent = stats.lowCoursesCount;
+            document.getElementById('kpi-low-credits').textContent = stats.lowCoursesCredits;
+
+            // Restore Excluded Courses Button Visibility
+            const restoreBtn = document.getElementById('btn-restore-excluded');
+            if (stats.userExcludedCount > 0) {
+                restoreBtn.classList.remove('hidden');
+                document.getElementById('excluded-count-label').textContent = stats.userExcludedCount;
+            } else {
+                restoreBtn.classList.add('hidden');
+            }
+
+            // Simulation Banner
+            const simBanner = document.getElementById('simulation-banner');
+            if (stats.hasSimulations) {
+                simBanner.classList.remove('hidden');
+                document.getElementById('simulation-diff-text').innerHTML =
+                    `GPA gốc: <strong>${stats.origGpa4.toFixed(2)}</strong> &rarr; GPA hiện tại: <strong class="text-humg-800">${stats.gpa4.toFixed(2)}</strong> (${delta4 >= 0 ? '+' : ''}${delta4.toFixed(2)} điểm hệ 4)`;
+            } else {
+                simBanner.classList.add('hidden');
+            }
+
+            // Sync Target Calculator inputs
+            document.getElementById('target-total-credits').value = totalProgramCredits;
+            document.getElementById('target-current-credits').value = `${stats.gpaCredits} tín chỉ (GPA ${stats.gpa4.toFixed(2)})`;
+            calculateTargetGPA();
+
+            renderTable(stats.enriched);
+            updateCharts(stats.enriched);
+        }
+
+        function renderTable(precomputedEnriched = null) {
+            const enriched = precomputedEnriched || computeTranscriptAnalytics().enriched;
+            const search = document.getElementById('search-input').value.trim().toLowerCase();
+            const semFilter = document.getElementById('filter-semester').value;
+            const gradeFilter = document.getElementById('filter-grade').value;
+
+            // Update Single-Semester Summary Banner whenever a specific semester is chosen
+            updateSemesterSummaryBanner(enriched, semFilter);
+
+            const filtered = enriched.filter(item => {
+                if (semFilter !== 'ALL' && item.semester !== semFilter) return false;
+                if (gradeFilter === 'IMPROVE') {
+                    if (!['D', 'D+', 'F'].includes(item.effLetter) || item.excludedByRule || item.isSuperseded || item.isUserExcluded) return false;
+                } else if (gradeFilter === 'EXCLUDED') {
+                    if (!item.isUserExcluded) return false;
+                } else if (gradeFilter !== 'ALL' && item.effLetter !== gradeFilter) {
+                    return false;
+                }
+                if (search && !item.code.toLowerCase().includes(search) && !item.name.toLowerCase().includes(search)) {
+                    return false;
+                }
+                return true;
+            });
+
+            const tbody = document.getElementById('courses-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-10 text-center text-sm text-slate-400">Không tìm thấy học phần nào phù hợp với bộ lọc hiện tại.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            let lastSemester = '';
+
+            filtered.forEach(item => {
+                if (item.semester !== lastSemester) {
+                    lastSemester = item.semester;
+                    html += `
+                        <tr class="bg-slate-100/80">
+                            <td colspan="9" class="py-2 px-3.5 text-xs font-bold text-humg-800 tracking-wide">
+                                ${escapeHtml(item.semester)}
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                const badgeClass = GRADE_MAP[item.effLetter]?.badge || 'bg-slate-100 text-slate-700';
+                let statusBadge = '';
+                if (item.isUserExcluded) {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-100 text-rose-800">Đã bỏ tính</span>`;
+                } else if (item.isHypothetical) {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-100 text-purple-800">Môn dự kiến</span>`;
+                } else if (item.excludedByRule) {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500">Không tính GPA</span>`;
+                } else if (item.isSuperseded) {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-200 text-slate-600 line-through">Đã cải thiện</span>`;
+                } else if (item.isSimulated) {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-100 text-amber-800">Đang giả lập</span>`;
+                } else if (item.effScore4 === 0) {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-100 text-rose-700">Chưa đạt</span>`;
+                } else if (['D', 'D+'].includes(item.effLetter)) {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">Nên cải thiện</span>`;
+                } else {
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700">Tích lũy</span>`;
+                }
+
+                const rowOpacity = item.isUserExcluded
+                    ? 'opacity-50 bg-rose-50/30'
+                    : (item.excludedByRule || item.isSuperseded)
+                        ? 'opacity-60 bg-slate-50/40'
+                        : (item.isSimulated ? 'bg-amber-50/40' : 'hover:bg-slate-50/80');
+
+                const nameDecoration = item.isUserExcluded ? 'line-through text-slate-400' : 'text-slate-800';
+
+                html += `
+                    <tr class="${rowOpacity} transition-colors">
+                        <td class="py-2.5 px-3.5 font-mono text-xs text-slate-500 whitespace-nowrap">${escapeHtml(item.code)}</td>
+                        <td class="py-2.5 px-3.5 font-medium ${nameDecoration}">${escapeHtml(item.name)}</td>
+                        <td class="py-2.5 px-2.5 text-center font-semibold text-slate-700">${item.credits}</td>
+                        <td class="py-2.5 px-2.5 text-center text-slate-600">${item.effScore10.toFixed(1)}</td>
+                        <td class="py-2.5 px-2.5 text-center font-semibold text-slate-800">${item.effScore4.toFixed(1)}</td>
+                        <td class="py-2.5 px-2.5 text-center">
+                            <span class="inline-block w-8 py-0.5 rounded-md text-xs font-bold border ${badgeClass}">
+                                ${item.effLetter}
+                            </span>
+                        </td>
+                        <td class="py-2.5 px-3.5 whitespace-nowrap">${statusBadge}</td>
+                        <td class="py-2.5 px-3.5 text-right whitespace-nowrap">
+                            ${item.isHypothetical ? `
+                                <span class="text-xs text-slate-400 italic">Môn giả lập</span>
+                            ` : `
+                                <select ${item.isUserExcluded ? 'disabled' : ''} onchange="simulateCourseGrade('${item.id}', this.value)" class="text-xs font-semibold rounded-lg px-2 py-1 border ${item.isSimulated ? 'bg-amber-100 border-amber-300 text-amber-900' : 'bg-white border-slate-200 text-slate-700'} disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-humg-500 outline-none">
+                                    <option value="ORIG" ${!item.isSimulated ? 'selected' : ''}>Giữ nguyên điểm gốc (${item.letter})</option>
+                                    ${['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'].map(g => `
+                                        <option value="${g}" ${item.simLetter === g ? 'selected' : ''}>&rarr; ${g} (${GRADE_MAP[g].score4.toFixed(1)} - ${GRADE_MAP[g].default10.toFixed(1)}đ)</option>
+                                    `).join('')}
+                                </select>
+                            `}
+                        </td>
+                        <td class="py-2.5 px-2.5 text-center whitespace-nowrap">
+                            ${item.isHypothetical ? `
+                                <button onclick="removeHypotheticalCourse('${item.id}')" title="Xóa hẳn môn dự kiến này" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-lg transition inline-flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            ` : item.isUserExcluded ? `
+                                <button onclick="toggleExcludeCourse('${item.id}')" title="Khôi phục môn học này vào tính GPA" class="px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition inline-flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                                    <span>Khôi phục</span>
+                                </button>
+                            ` : `
+                                <button onclick="toggleExcludeCourse('${item.id}')" title="Xóa / Loại trừ môn này khỏi tính GPA" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition inline-flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            `}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // Calculates & renders GPA for a single selected semester (matches HUMG semester GPA rule)
+        function updateSemesterSummaryBanner(enriched, semFilter) {
+            const banner = document.getElementById('semester-summary-banner');
+            if (!semFilter || semFilter === 'ALL') {
+                banner.classList.add('hidden');
+                return;
+            }
+
+            const semCourses = enriched.filter(item =>
+                item.semester === semFilter && !item.excludedByRule && !item.isUserExcluded
+            );
+
+            let totalCredits = 0;
+            let passedCredits = 0;
+            let sum4 = 0;
+            let sum10 = 0;
+
+            semCourses.forEach(item => {
+                totalCredits += item.credits;
+                sum4 += item.credits * item.effScore4;
+                sum10 += item.credits * item.effScore10;
+                if (item.effScore4 > 0) {
+                    passedCredits += item.credits;
+                }
+            });
+
+            const semGpa4 = totalCredits > 0 ? (sum4 / totalCredits) : 0;
+            const semGpa10 = totalCredits > 0 ? (sum10 / totalCredits) : 0;
+            const rank = getRankInfo(semGpa4);
+
+            document.getElementById('sem-summary-title').textContent = semFilter;
+            document.getElementById('sem-summary-gpa4').textContent = semGpa4.toFixed(2);
+            document.getElementById('sem-summary-gpa10').textContent = semGpa10.toFixed(2);
+            document.getElementById('sem-summary-credits').innerHTML = `${passedCredits} <span class="text-xs font-medium text-slate-400">/ ${totalCredits}</span>`;
+
+            const rankEl = document.getElementById('sem-summary-rank');
+            rankEl.textContent = rank.label;
+            rankEl.className = `px-2.5 py-0.5 rounded-md text-xs font-bold ${rank.color}`;
+
+            banner.classList.remove('hidden');
+        }
+
+        function simulateCourseGrade(courseId, newLetter) {
+            const course = rawCourses.find(c => c.id === courseId);
+            if (!course) return;
+            course.simLetter = (newLetter === 'ORIG') ? null : newLetter;
+            saveToLocalStorage();
+            recalculateAll();
+        }
+
+        function toggleExcludeCourse(courseId) {
+            const course = rawCourses.find(c => c.id === courseId);
+            if (!course) return;
+            course.userExcluded = !course.userExcluded;
+            saveToLocalStorage();
+            recalculateAll();
+            if (course.userExcluded) {
+                showToast(`Đã bỏ tính môn "${course.name}" khỏi GPA.`);
+            } else {
+                showToast(`Đã khôi phục môn "${course.name}" vào bảng điểm.`);
+            }
+        }
+
+        function restoreAllExcludedCourses() {
+            rawCourses.forEach(c => c.userExcluded = false);
+            saveToLocalStorage();
+            if (document.getElementById('filter-grade').value === 'EXCLUDED') {
+                document.getElementById('filter-grade').value = 'ALL';
+            }
+            recalculateAll();
+            showToast('Đã khôi phục toàn bộ các môn đã bỏ tính!');
+        }
+
+        function resetSimulations() {
+            rawCourses.forEach(c => {
+                c.simLetter = null;
+                c.userExcluded = false;
+            });
+            hypotheticalCourses = [];
+            saveToLocalStorage();
+            populateSemesterDropdown();
+            recalculateAll();
+            showToast('Đã khôi phục toàn bộ điểm về trạng thái gốc.');
+        }
+
+        function filterImproveCandidates() {
+            switchTab('grades');
+            document.getElementById('filter-semester').value = 'ALL';
+            document.getElementById('filter-grade').value = 'IMPROVE';
+            renderTable();
+        }
+
+        // =========================================================================
+        // 6. HYPOTHETICAL COURSE MODAL
+        // =========================================================================
+        function openAddCourseModal() {
+            document.getElementById('new-course-name').value = '';
+            document.getElementById('add-course-modal').classList.remove('hidden');
+            document.getElementById('new-course-name').focus();
+        }
+
+        function closeAddCourseModal() {
+            document.getElementById('add-course-modal').classList.add('hidden');
+        }
+
+        function confirmAddCourse() {
+            const name = document.getElementById('new-course-name').value.trim() || 'Học phần dự kiến';
+            const credits = parseFloat(document.getElementById('new-course-credits').value) || 3;
+            const letter = document.getElementById('new-course-grade').value;
+
+            hypotheticalCourses.push({
+                id: 'hypo_' + Date.now(),
+                semester: 'Học kỳ dự kiến (Giả lập)',
+                code: 'DUKIEN',
+                name: name,
+                credits: credits,
+                score10: GRADE_MAP[letter].default10,
+                score4: GRADE_MAP[letter].score4,
+                letter: letter,
+                simLetter: null,
+                isHypothetical: true
+            });
+
+            closeAddCourseModal();
+            saveToLocalStorage();
+            populateSemesterDropdown();
+            recalculateAll();
+            showToast(`Đã thêm "${name}" (${credits} TC - điểm ${letter}) vào bảng điểm!`);
+        }
+
+        function removeHypotheticalCourse(id) {
+            hypotheticalCourses = hypotheticalCourses.filter(c => c.id !== id);
+            saveToLocalStorage();
+            populateSemesterDropdown();
+            recalculateAll();
+        }
+
+        // =========================================================================
+        // 7. TARGET GRADUATION GPA CALCULATOR
+        // =========================================================================
+        function calculateTargetGPA() {
+            const stats = computeTranscriptAnalytics();
+            const targetGPA = parseFloat(document.getElementById('target-gpa-select').value);
+            const totalCredits = parseInt(document.getElementById('target-total-credits').value) || 150;
+            const currentCredits = stats.gpaCredits;
+            const currentPoints = currentCredits * stats.gpa4;
+            const remainingCredits = totalCredits - currentCredits;
+
+            const box = document.getElementById('target-result-box');
+
+            if (remainingCredits <= 0) {
+                const achieved = stats.gpa4 >= targetGPA;
+                box.className = `rounded-2xl p-6 border ${achieved ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`;
+                box.innerHTML = `
+                    <p class="text-base font-bold">${achieved ? '🎉 Chúc mừng! Bạn đã tích lũy đủ tín chỉ và đạt mục tiêu GPA!' : '⚠️ Bạn đã tích lũy đủ số tín chỉ toàn khóa.'}</p>
+                    <p class="text-sm mt-1">GPA hiện tại của bạn là <strong>${stats.gpa4.toFixed(2)}</strong>. Nếu muốn nâng hạng bằng, bạn có thể đăng ký học cải thiện các môn điểm D, D+ ở Tab Bảng điểm.</p>
+                `;
+                return;
+            }
+
+            const requiredPoints = (targetGPA * totalCredits) - currentPoints;
+            const requiredAvgGPA = requiredPoints / remainingCredits;
+
+            if (requiredAvgGPA > 4.0) {
+                const maxPossibleGPA = (currentPoints + remainingCredits * 4.0) / totalCredits;
+                box.className = 'rounded-2xl p-6 border bg-rose-50 border-rose-200 text-rose-900 space-y-2';
+                box.innerHTML = `
+                    <div class="flex items-center gap-2 font-bold text-base">
+                        <span>⚠️ Không thể đạt GPA ${targetGPA.toFixed(2)} nếu chỉ học các môn mới</span>
+                    </div>
+                    <p class="text-sm">Ngay cả khi đạt <strong>A+ (4.0)</strong> tất cả <strong>${remainingCredits}</strong> tín chỉ còn lại, GPA tối đa của bạn là <strong>${maxPossibleGPA.toFixed(2)}</strong>.</p>
+                    <p class="text-xs text-rose-700 pt-1">💡 <strong>Giải pháp:</strong> Hãy chuyển sang Tab <em>"Bảng điểm & Giả lập cải thiện"</em> và thử đăng ký học cải thiện các môn điểm D/D+ để kéo GPA vượt mốc ${targetGPA.toFixed(2)}!</p>
+                `;
+            } else if (requiredAvgGPA <= 0) {
+                box.className = 'rounded-2xl p-6 border bg-emerald-50 border-emerald-200 text-emerald-900 space-y-1';
+                box.innerHTML = `
+                    <p class="font-bold text-base">✅ Bạn đã chắc chắn vượt mức GPA ${targetGPA.toFixed(2)}!</p>
+                    <p class="text-sm">Chỉ cần hoàn thành qua môn tất cả <strong>${remainingCredits}</strong> tín chỉ còn lại là bạn đã đạt mục tiêu.</p>
+                `;
+            } else {
+                const difficulty = requiredAvgGPA >= 3.6 ? 'Rất thử thách (cần đa số điểm A/A+)'
+                    : requiredAvgGPA >= 3.2 ? 'Khả thi nếu tập trung (cần trung bình từ B+ trở lên)'
+                    : requiredAvgGPA >= 2.5 ? 'Hoàn toàn trong tầm tay (cần trung bình từ C+/B)'
+                    : 'Rất dễ dàng đạt được';
+
+                box.className = 'rounded-2xl p-6 border bg-humg-50 border-humg-200 text-humg-900 space-y-2';
+                box.innerHTML = `
+                    <p class="text-xs font-bold uppercase tracking-wider text-humg-600">Kết quả tính toán mục tiêu</p>
+                    <p class="text-lg sm:text-xl font-extrabold">
+                        Bạn cần đạt GPA trung bình <span class="text-2xl text-humg-700 underline decoration-sky-400">${requiredAvgGPA.toFixed(2)} / 4.00</span> trong <span class="text-humg-700">${remainingCredits}</span> tín chỉ còn lại.
+                    </p>
+                    <p class="text-sm text-slate-700">Đánh giá mức độ: <strong>${difficulty}</strong>.</p>
+                `;
+            }
+        }
+
+        // =========================================================================
+        // 8. ANALYTICS CHARTS (Chart.js)
+        // =========================================================================
+        function updateCharts(enriched) {
+            // 1. Semester GPA & Cumulative Trend
+            const semMap = new Map();
+            enriched.forEach(item => {
+                if (item.excludedByRule || item.isSuperseded || item.isUserExcluded) return;
+                if (!semMap.has(item.semester)) {
+                    semMap.set(item.semester, { credits: 0, sum4: 0 });
+                }
+                const entry = semMap.get(item.semester);
+                entry.credits += item.credits;
+                entry.sum4 += item.credits * item.effScore4;
+            });
+
+            const labels = [];
+            const semGPAs = [];
+            const cumGPAs = [];
+            let runningCredits = 0;
+            let runningSum4 = 0;
+
+            semMap.forEach((val, semName) => {
+                // Shorten semester label for chart readability
+                const shortLabel = semName
+                    .replace('Học kỳ ', 'HK')
+                    .replace(' - Năm học ', ' (')
+                    .replace(' - ', '-') + (semName.includes('Năm học') ? ')' : '');
+                labels.push(shortLabel);
+
+                const sGpa = val.credits > 0 ? +(val.sum4 / val.credits).toFixed(2) : 0;
+                semGPAs.push(sGpa);
+
+                runningCredits += val.credits;
+                runningSum4 += val.sum4;
+                cumGPAs.push(runningCredits > 0 ? +(runningSum4 / runningCredits).toFixed(2) : 0);
+            });
+
+            const ctxSem = document.getElementById('semesterChart').getContext('2d');
+            if (semesterChartInstance) semesterChartInstance.destroy();
+            semesterChartInstance = new Chart(ctxSem, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'GPA Tích lũy (Hệ 4)',
+                            data: cumGPAs,
+                            borderColor: '#0f3460',
+                            backgroundColor: '#0f3460',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            type: 'bar',
+                            label: 'GPA Học kỳ (Hệ 4)',
+                            data: semGPAs,
+                            backgroundColor: 'rgba(56, 189, 248, 0.65)',
+                            borderColor: '#0284c7',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 4.0, ticks: { stepSize: 0.5 } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // 2. Grade Letter Distribution (Credits)
+            const letterOrder = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
+            const letterCredits = { 'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'D+': 0, 'D': 0, 'F': 0 };
+
+            enriched.forEach(item => {
+                if (item.excludedByRule || item.isSuperseded || item.isUserExcluded) return;
+                if (letterCredits.hasOwnProperty(item.effLetter)) {
+                    letterCredits[item.effLetter] += item.credits;
+                }
+            });
+
+            const ctxDist = document.getElementById('gradeDistChart').getContext('2d');
+            if (gradeDistChartInstance) gradeDistChartInstance.destroy();
+            gradeDistChartInstance = new Chart(ctxDist, {
+                type: 'doughnut',
+                data: {
+                    labels: letterOrder.map(l => `Điểm ${l}`),
+                    datasets: [{
+                        data: letterOrder.map(l => letterCredits[l]),
+                        backgroundColor: [
+                            '#059669', '#10b981', '#1d4ed8', '#3b82f6',
+                            '#0284c7', '#38bdf8', '#d97706', '#f59e0b', '#e11d48'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '62%',
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // =========================================================================
+        // 9. TABS, EXPORT EXCEL & DEMO DATASET
+        // =========================================================================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('border-humg-600', 'text-humg-700', 'font-semibold');
+                b.classList.add('border-transparent', 'text-slate-500', 'font-medium');
+            });
+
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-btn-' + tabName);
+            activeBtn.classList.remove('border-transparent', 'text-slate-500', 'font-medium');
+            activeBtn.classList.add('border-humg-600', 'text-humg-700', 'font-semibold');
+        }
+
+        function exportExcel() {
+            const stats = computeTranscriptAnalytics();
+            const exportRows = [
+                ['BẢNG ĐIỂM TÍCH LŨY & GIẢ LẬP - HUMG SCORE'],
+                [`GPA Tích lũy (Hệ 4): ${stats.gpa4.toFixed(2)}`, `GPA Tích lũy (Hệ 10): ${stats.gpa10.toFixed(2)}`, `Tín chỉ tích lũy: ${stats.passedCredits}`],
+                [],
+                ['Học kỳ', 'Mã MH', 'Tên môn học', 'Số tín chỉ', 'Điểm Hệ 10', 'Điểm Hệ 4', 'Điểm Chữ', 'Ghi chú']
+            ];
+
+            stats.enriched.forEach(item => {
+                let note = 'Tính GPA';
+                if (item.isUserExcluded) note = 'Đã bỏ tính (Người dùng loại trừ)';
+                else if (item.excludedByRule) note = 'Không tính GPA (GDTC/GDQP)';
+                else if (item.isSuperseded) note = 'Đã học cải thiện';
+                else if (item.isSimulated) note = `Giả lập (Gốc: ${item.letter})`;
+                else if (item.isHypothetical) note = 'Môn dự kiến';
+
+                exportRows.push([
+                    item.semester,
+                    item.code,
+                    item.name,
+                    item.credits,
+                    item.effScore10,
+                    item.effScore4,
+                    item.effLetter,
+                    note
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(exportRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'BangDiem_HUMG');
+            XLSX.writeFile(wb, 'HUMG_Score_BangDiem.xlsx');
+            showToast('Đã xuất bảng điểm ra file HUMG_Score_BangDiem.xlsx!');
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Realistic HUMG Sample Dataset for instant preview
+        function loadDemoData() {
+            const demo = [
+                { semester: 'Học kỳ 1 - Năm học 2023 - 2024', code: '7010101', name: 'Giải tích 1', credits: 3, score10: 6.7, score4: 2.5, letter: 'C+' },
+                { semester: 'Học kỳ 1 - Năm học 2023 - 2024', code: '7010201', name: 'Đại số', credits: 3, score10: 7.4, score4: 3.0, letter: 'B' },
+                { semester: 'Học kỳ 1 - Năm học 2023 - 2024', code: '7010301', name: 'Vật lý đại cương 1', credits: 3, score10: 6.1, score4: 2.0, letter: 'C' },
+                { semester: 'Học kỳ 1 - Năm học 2023 - 2024', code: '7010701', name: 'Giáo dục thể chất 1', credits: 1, score10: 8.0, score4: 3.5, letter: 'B+' },
+                { semester: 'Học kỳ 1 - Năm học 2023 - 2024', code: '7080115', name: 'Tin học cơ sở 1', credits: 2, score10: 8.8, score4: 3.7, letter: 'A' },
+
+                { semester: 'Học kỳ 2 - Năm học 2023 - 2024', code: '7010102', name: 'Giải tích 2', credits: 3, score10: 5.2, score4: 1.5, letter: 'D+' },
+                { semester: 'Học kỳ 2 - Năm học 2023 - 2024', code: '7010302', name: 'Vật lý đại cương 2', credits: 3, score10: 6.9, score4: 2.5, letter: 'C+' },
+                { semester: 'Học kỳ 2 - Năm học 2023 - 2024', code: '7010505', name: 'Cơ lý thuyết 1', credits: 3, score10: 2.6, score4: 0.0, letter: 'F' },
+                { semester: 'Học kỳ 2 - Năm học 2023 - 2024', code: '7030101', name: 'Triết học Mác - Lênin', credits: 3, score10: 7.6, score4: 3.0, letter: 'B' },
+                { semester: 'Học kỳ 2 - Năm học 2023 - 2024', code: '7300101', name: 'Đường lối quốc phòng và an ninh', credits: 3, score10: 8.4, score4: 3.5, letter: 'B+' },
+
+                { semester: 'Học kỳ 1 - Năm học 2024 - 2025', code: '7010104', name: 'Xác suất thống kê', credits: 3, score10: 7.9, score4: 3.0, letter: 'B' },
+                { semester: 'Học kỳ 1 - Năm học 2024 - 2025', code: '7080205', name: 'Cấu trúc dữ liệu và giải thuật', credits: 3, score10: 8.5, score4: 3.7, letter: 'A' },
+                { semester: 'Học kỳ 1 - Năm học 2024 - 2025', code: '7080302', name: 'Cơ sở dữ liệu', credits: 3, score10: 9.1, score4: 4.0, letter: 'A+' },
+                { semester: 'Học kỳ 1 - Năm học 2024 - 2025', code: '7030102', name: 'Kinh tế chính trị Mác - Lênin', credits: 2, score10: 4.8, score4: 1.0, letter: 'D' },
+
+                { semester: 'Học kỳ 2 - Năm học 2024 - 2025', code: '7010505', name: 'Cơ lý thuyết 1', credits: 3, score10: 7.6, score4: 3.0, letter: 'B' },
+                { semester: 'Học kỳ 2 - Năm học 2024 - 2025', code: '7080410', name: 'Lập trình hướng đối tượng', credits: 3, score10: 8.4, score4: 3.5, letter: 'B+' },
+                { semester: 'Học kỳ 2 - Năm học 2024 - 2025', code: '7080512', name: 'Mạng máy tính', credits: 3, score10: 8.1, score4: 3.5, letter: 'B+' },
+                { semester: 'Học kỳ 2 - Năm học 2024 - 2025', code: '7030105', name: 'Tư tưởng Hồ Chí Minh', credits: 2, score10: 9.0, score4: 4.0, letter: 'A+' }
+            ];
+
+            rawCourses = demo.map((item, idx) => ({
+                ...item,
+                id: 'demo_' + (idx + 1),
+                simLetter: null,
+                userExcluded: false,
+                isHypothetical: false
+            }));
+            hypotheticalCourses = [];
+            saveToLocalStorage();
+            document.getElementById('file-status-text').innerHTML = `<span class="text-sky-600 font-semibold">Đang hiển thị dữ liệu mẫu HUMG (18 lượt học phần).</span>`;
+            activateDashboard();
+            showToast('Đã tải dữ liệu mẫu bảng điểm HUMG!');
+        }
+    </script>
+</body>
+</html>
